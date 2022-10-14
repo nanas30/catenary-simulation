@@ -1,11 +1,6 @@
-"""Provides a scripting component.
-    Inputs:
-        x: The x script variable
-        y: The y script variable
-    Output:
-        a: The a output variable"""
-
 __author__ = "rinakinoshita"
+
+
 
 import rhinoscriptsyntax as rs
 import ghpythonlib.components as gh
@@ -33,6 +28,79 @@ c =[]
 
 prev_pntN_first=None
 
+#Catenary direction
+if flip == True:
+    flip = -1
+else:
+    flip = 1
+
+
+class Test:
+    def __init__(self):
+        print("hi")
+
+test = Test()
+
+class Catenary:
+
+    def __init__(self, aPt, bPt, len, dir):
+        self.aPt = aPt
+        self.bPt = bPt
+        self.len = len
+        self.dir = dir
+        self.cat = None
+        self.extrdsrf = None
+    
+    def draw(self):
+        print("Catenary.draw")
+        self.cat = gh.Catenary(self.aPt, self.bPt, self.len, self.dir)
+        #print(line)
+    
+    def extrd(self):
+        print("Catenary.extrd")
+        #save extruded surface as an obstacle
+        path = rs.AddLine([0,0,0],[0,0,-100*flip])
+        self.extrdsrf = rs.ExtrudeCurve(self.cat, path)
+        
+
+
+class Chain:
+
+    def __init__(self, aPt, bPt, len, dir):
+        self.aPt = aPt
+        self.bPt = bPt
+        self.len = len
+        self.dir = dir
+        self.catenaries = []
+        """
+        catenary = Catenary(aPt, bPt, len, dir)
+        self.catenaries.append(catenary)
+        """
+
+    def tangle(self, prevChains):
+        print("Chain.tangle")
+        #get colliding points
+        for prevChain in range(prevChains):
+            for prevCat in range(prevChain):
+                collision = 
+
+
+        #move colliding points up
+        #get divided length
+        #
+
+
+
+
+
+catenary =[]
+vector = rs.coerce3dvector([0,0,-1])
+for lineN, line in enumerate(lines):
+    aaa = Catenary(rs.CurveStartPoint(line),rs.CurveEndPoint(line),y[lineN],vector*flip)
+    aaa.draw()
+    catenary.append(aaa.cat)
+
+"""
 if flip == True:
     flip = -1
 else:
@@ -144,3 +212,4 @@ for lineN, line in enumerate(lines):
             else: 
                 prev_pntN_first = pntN_first 
                 print("yaaa"+str(prev_pntN_first))
+"""
