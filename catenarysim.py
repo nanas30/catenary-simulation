@@ -48,19 +48,21 @@ class Catenary:
         self.bPt = bPt
         self.len = len
         self.dir = dir
-        self.cat = None
-        self.extrdsrf = None
+
+        self.cat = self.draw()
+        self.extrdSrf = self.extrd()
     
     def draw(self):
         print("Catenary.draw")
-        self.cat = gh.Catenary(self.aPt, self.bPt, self.len, self.dir)
-        #print(line)
+        return gh.Catenary(self.aPt, self.bPt, self.len, self.dir)
+        #self.cat = gh.Catenary(self.aPt, self.bPt, self.len, self.dir)
+
     
     def extrd(self):
         print("Catenary.extrd")
         #save extruded surface as an obstacle
         path = rs.AddLine([0,0,0],[0,0,-100*flip])
-        self.extrdsrf = rs.ExtrudeCurve(self.cat, path)
+        return rs.ExtrudeCurve(self.cat, path)
         
 
 
@@ -71,18 +73,18 @@ class Chain:
         self.bPt = bPt
         self.len = len
         self.dir = dir
+
+        self.initCat = Catenary(self.aPt, self.bPt, self.len, self.dir).cat
         self.catenaries = []
-        """
-        catenary = Catenary(aPt, bPt, len, dir)
-        self.catenaries.append(catenary)
-        """
+
 
     def tangle(self, prevChains):
         print("Chain.tangle")
         #get colliding points
-        for prevChain in range(prevChains):
-            for prevCat in range(prevChain):
-                collision = 
+        for prevChain in prevChains:
+            for prevCat in prevChain:
+                print(prevCat)
+                collision = rs.CurveSurfaceIntersection(self.initCat, prevCat.extrdSrf)
 
 
         #move colliding points up
@@ -94,11 +96,31 @@ class Chain:
 
 
 catenary =[]
+chains = []
 vector = rs.coerce3dvector([0,0,-1])
 for lineN, line in enumerate(lines):
+    line = rs.coercecurve(line)
+    #aaa = Catenary(rs.CurveStartPoint(line),rs.CurveEndPoint(line),y[lineN],vector*flip)
+    #catenary.append(aaa.cat)
+    
+    #catenary.append(Catenary(rs.CurveStartPoint(line),rs.CurveEndPoint(line),y[lineN],vector*flip).cat)
+    bbb = Chain(rs.CurveStartPoint(line),rs.CurveEndPoint(line),y[lineN],vector*flip)
+
+    if lineN == 0:
+        firstCat = Catenary(rs.CurveStartPoint(line),rs.CurveEndPoint(line),y[lineN],vector*flip)
+        print(firstCat.extrdSrf)
+        chains.append([firstCat])
+        print(chains)
+    else:
+        bbb.tangle(chains)
+        chains.append([bbb])
+    #catenary.append(bbb)
+    """
     aaa = Catenary(rs.CurveStartPoint(line),rs.CurveEndPoint(line),y[lineN],vector*flip)
+    bbb = Chain(rs.CurveStartPoint(line),rs.CurveEndPoint(line),y[lineN],vector*flip)
     aaa.draw()
     catenary.append(aaa.cat)
+    """
 
 """
 if flip == True:
