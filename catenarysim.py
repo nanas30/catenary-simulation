@@ -37,19 +37,25 @@ else:
 # A class for keeping track of each Catenaries
 class Catenary:
 
-    def __init__(self, aPt, bPt, len, dir):
+    def __init__(self, aPt, bPt, mult, dir):
         self.aPt = aPt
         self.bPt = bPt
-        self.len = len
+        self.mult = mult
         self.dir = dir
 
+        self.len = 0
         self.rerun()
 
     def rerun(self):
+        self.dist = self.distance()
         self.cat = self.draw()
         self.extrdSrf = self.extrd()
     
+    def distance(self):
+        return rs.Distance(self.aPt, self.bPt)
+
     def draw(self):
+        self.len = self.dist * self.mult
         cat = gh.Catenary(self.aPt, self.bPt, self.len, self.dir)
 
         ## check cat wrong gravity direction and correct
@@ -84,13 +90,13 @@ class Catenary:
 # methods for generating tangled chains as Catenary class objects
 class Chain:
 
-    def __init__(self, aPt, bPt, len, dir):
+    def __init__(self, aPt, bPt, mult, dir):
         self.aPt = aPt
         self.bPt = bPt
-        self.len = len
+        self.mult = mult
         self.dir = dir
         
-        self.catBeforeTangle = Catenary(self.aPt, self.bPt, self.len, self.dir)
+        self.catBeforeTangle = Catenary(self.aPt, self.bPt, self.mult, self.dir)
         self.tangledCat_list = []
 
 
@@ -154,26 +160,35 @@ class Chain:
             for i in range( len(tanglingPnt_list) -1):
                 aPt = tanglingPnt_list[i]
                 bPt = tanglingPnt_list[i+1]
-                dist = rs.Distance(aPt, bPt)
-                catLen = dist ## change
+                mult = self.mult ## change
 
-                cat = Catenary(aPt, bPt, catLen, self.dir)
+                cat = Catenary(aPt, bPt, mult, self.dir)
 
                 self.tangledCat_list.append(cat)
+
+            totalDist = 0
+            for i in range( len(self.tangledCat_list) ):
+                cat = self.tangledCat_list[i]
+                totalDist += cat.dist
+
 
             ### get divided length
             for i in range( len(self.tangledCat_list) ):
                 cat = self.tangledCat_list[i]
-                if rs.Distance(cat.aPt, cat.bPt) < nozzleDiameter*2:
-                    cat.len *= 1
+                if cat.dist < nozzleDiameter*2:
+                    cat.mult = 1
+                    cat.rerun()
                 else:
-                    cat.len *= 1.1
+                    cat.mult *= self.catBeforeTangle.dist / totalDist
+                    print(self.catBeforeTangle.len)
+                    print(totalDist)
+                    print(cat.mult)
                     cat.rerun()
 
-            return self.tangledCat_list
-            
-        
-        return tanglingChains( tanglingPnts() )
+            #return self.tangledCat_list
+
+        tanglingChains( tanglingPnts() )        
+        return self.tangledCat_list
 
 #####################
 ##### CLASS END #####
@@ -192,8 +207,16 @@ for lineN, line in enumerate( lines ):
 
 print("result")
 
-catenary =[]
+catenary = []
 print(tangledChain_list)
 for tangledChain in tangledChain_list:
+    chain =[]
     for tangledCat in tangledChain.tangledCat_list:
+        chain.append(tangledCat.cat)
+    
+    if len(chain)>1:
+        catenary.append(rs.JoinCurves(chain)[0])
+        print('join')
+        print(rs.JoinCurves(chain))
+    else:
         catenary.append(tangledCat.cat)
