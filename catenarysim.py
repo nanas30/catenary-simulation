@@ -15,7 +15,7 @@ y = y
 flip = flip
 
 maxLen = 1000 # warning # change
-nozzleDiameter = 5
+nozzleDiameter = 0.4
 
 ### output
 #Catenary = DataTree[object]()
@@ -57,8 +57,12 @@ class Catenary:
         line = rs.AddLine(self.aPt, self.bPt)
         lineMidPntZ = rs.CurveMidPoint(line)[2]
         catMidPntZ = rs.CurveMidPoint(cat)[2]
-        if catMidPntZ > lineMidPntZ:
-            cat = gh.Catenary(self.aPt, self.bPt, self.len, self.dir*-1)
+        if flip is True:
+            if catMidPntZ < lineMidPntZ:
+                cat = gh.Catenary(self.aPt, self.bPt, self.len, self.dir*-1)
+        else:
+            if catMidPntZ > lineMidPntZ:
+                cat = gh.Catenary(self.aPt, self.bPt, self.len, self.dir*-1)
 
         
         ## flip Curve Direction
