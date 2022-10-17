@@ -18,7 +18,7 @@ maxLen = 1000 # warning # change
 nozzleDiameter = 0.4
 
 ### output
-#Catenary = DataTree[object]()
+catenaryTree = DataTree[object]()
 cat =[]
 debugger =[]
 
@@ -56,6 +56,11 @@ class Catenary:
 
     def draw(self):
         self.len = self.dist * self.mult
+
+        #print(self.aPt, self.bPt, self.len, self.dir)
+        #print(self.mult)
+        if self.len <= self.dist:
+            print("warning: catenary length is shorter than AB distance")
         cat = gh.Catenary(self.aPt, self.bPt, self.len, self.dir)
 
         ## check cat wrong gravity direction and correct
@@ -66,9 +71,15 @@ class Catenary:
         if flip is True:
             if catMidPntZ < lineMidPntZ:
                 cat = gh.Catenary(self.aPt, self.bPt, self.len, self.dir*-1)
+                catMidPntZ = rs.CurveMidPoint(cat)[2]
+                if catMidPntZ < lineMidPntZ:
+                    cat = gh.Catenary(self.aPt, self.bPt, self.dist, self.dir)
         else:
             if catMidPntZ > lineMidPntZ:
                 cat = gh.Catenary(self.aPt, self.bPt, self.len, self.dir*-1)
+                catMidPntZ = rs.CurveMidPoint(cat)[2]
+                if catMidPntZ > lineMidPntZ:
+                    cat = gh.Catenary(self.aPt, self.bPt, self.dist, self.dir)
         
         ## flip Curve Direction
         if not rs.CurveDirectionsMatch(cat, rs.AddLine(self.aPt, self.bPt)):
@@ -80,7 +91,6 @@ class Catenary:
         return cat
 
     def extrd(self):
-        print("Catenary.extrd")
         ## save extruded surface as an obstacle
         path = rs.AddLine([0,0,0],gravity*maxLen)
         return rs.ExtrudeCurve(self.cat, path)
@@ -101,8 +111,6 @@ class Chain:
 
 
     def tangle(self, prevChain_list):
-        print("Chain.tangle")
-        
         ## make a list of tangling points
         def tanglingPnts():
             ## append first and last point/params
@@ -144,13 +152,32 @@ class Chain:
                                 tanglingPnt_list.append(tanglingPnt)
                                 collisionPntParam_list.append(collisionPntParm)                   
                                 
-            ## reorder pnts
+            ## sort pnts order
             tanglingPnt_listSorter = zip(collisionPntParam_list, tanglingPnt_list)
             tanglingPnt_listSorter.sort()
             collisionPntParam_list, tanglingPnt_list = zip(* tanglingPnt_listSorter)
 
-            ## Cull duplicate pnts
+            ## Cull duplicate pnts refer XYZ
             tanglingPnt_list = rs.CullDuplicatePoints(tanglingPnt_list)
+            
+            ## Cull duplicate pnts refer XY 
+            tanglingPntXY_list =  rs.CopyObjects( tanglingPnt_list )
+            for n in range(len(tanglingPntXY_list)):
+                tanglingPntXY_list[n] = rs.coerce3dpoint( tanglingPntXY_list[n] )
+
+            for tanglingPntXY in tanglingPntXY_list:
+                tanglingPntXY[2] = 0
+
+            for thisn, tanglingPntXY in enumerate( tanglingPntXY_list ):
+                for n in range(thisn):
+                    if rs.PointCompare(tanglingPntXY_list[thisn], tanglingPntXY_list[n]):
+                        ## TODO: does not deal with flip
+                        if tanglingPnt_list[thisn][2] > tanglingPnt_list[n][2]:
+                            tanglingPnt_list[n] = []
+                        else:
+                            tanglingPnt_list[thisn] = []
+
+            tanglingPnt_list = filter(None, tanglingPnt_list)
 
             return tanglingPnt_list
         
@@ -180,9 +207,6 @@ class Chain:
                     cat.rerun()
                 else:
                     cat.mult *= self.catBeforeTangle.dist / totalDist
-                    print(self.catBeforeTangle.len)
-                    print(totalDist)
-                    print(cat.mult)
                     cat.rerun()
 
             #return self.tangledCat_list
@@ -208,15 +232,13 @@ for lineN, line in enumerate( lines ):
 print("result")
 
 catenary = []
-print(tangledChain_list)
-for tangledChain in tangledChain_list:
+for i,tangledChain in enumerate(tangledChain_list):
     chain =[]
     for tangledCat in tangledChain.tangledCat_list:
         chain.append(tangledCat.cat)
+        catenaryTree.Add(tangledCat.cat, GH_Path(i))
     
     if len(chain)>1:
         catenary.append(rs.JoinCurves(chain)[0])
-        print('join')
-        print(rs.JoinCurves(chain))
     else:
         catenary.append(tangledCat.cat)
