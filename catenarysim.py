@@ -8,6 +8,9 @@ import Rhino as rc
 from Grasshopper import DataTree
 from Grasshopper.Kernel.Data import GH_Path
 
+import scriptcontext
+
+
 ### input
 lines = lines
 y = y
@@ -44,6 +47,7 @@ class Catenary:
         self.dir = dir
 
         self.len = 0
+        self.color= [0,0,0]
         self.rerun()
 
     def rerun(self):
@@ -60,7 +64,8 @@ class Catenary:
         #print(self.aPt, self.bPt, self.len, self.dir)
         #print(self.mult)
         if self.len <= self.dist:
-            print("warning: catenary length is shorter than AB distance")
+            print("")
+            #print("warning: catenary length is shorter than AB distance")
         cat = gh.Catenary(self.aPt, self.bPt, self.len, self.dir)
 
         ## check cat wrong gravity direction and correct
@@ -110,7 +115,7 @@ class Chain:
         self.tangledCat_list = []
 
 
-    def tangle(self, prevChain_list):
+    def tangle(self, prevChain_list, lineNforDebug):
         ## make a list of tangling points
         def tanglingPnts():
             ## append first and last point/params
@@ -124,14 +129,18 @@ class Chain:
 
             ## check collision if there are previous Chains
             if prevChain_list != []:
-                for prevChain in prevChain_list:
-                    for prevCat in prevChain.tangledCat_list:
+                for i, prevChain in enumerate(prevChain_list):
+                    for j, prevCat in enumerate(prevChain.tangledCat_list):
                         # find if this chain collides with obstacles ( areas below previous chains )
+
+                        print(i,j)
 
                         collisionCheck = rs.CurveSurfaceIntersection(self.catBeforeTangle.cat, prevCat.extrdSrf)
                         
                         if collisionCheck:
                             if collisionCheck[0][0] == 1:
+
+
                                 # find and append tangling point
                                                                                                                                 
                                 ## pnt and param where chain collides with obstacles 
@@ -211,7 +220,15 @@ class Chain:
 
             #return self.tangledCat_list
 
-        tanglingChains( tanglingPnts() )        
+        tanglingPnt_list = tanglingPnts()
+        
+        ## !!!!
+        if lineNforDebug < len(lines)-1:
+            tanglingChains( tanglingPnt_list )
+        else:
+            for item in tanglingPnt_list:
+                debugger.append(item)
+
         return self.tangledCat_list
 
 #####################
@@ -225,18 +242,28 @@ tangledChain_list = []
 for lineN, line in enumerate( lines ):
     line = rs.coercecurve( line )
     chain = Chain( rs.CurveStartPoint(line),rs.CurveEndPoint(line),y[lineN],gravity )
-    chain.tangle( tangledChain_list )
-    tangledChain_list.append( chain )
+    chain.tangle( tangledChain_list , lineN)
+
+    ## !!!!
+    if lineN < len(lines)-1:
+        
+        tangledChain_list.append( chain )
+        print(lineN)
 
 
 print("result")
 
 catenary = []
+check = []
 for i,tangledChain in enumerate(tangledChain_list):
     chain =[]
-    for tangledCat in tangledChain.tangledCat_list:
+    
+    for j, tangledCat in enumerate(tangledChain.tangledCat_list):
         chain.append(tangledCat.cat)
         catenaryTree.Add(tangledCat.cat, GH_Path(i))
+
+        check.append(tangledCat.extrdSrf)
+
     
     if len(chain)>1:
         catenary.append(rs.JoinCurves(chain)[0])
