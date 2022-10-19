@@ -174,8 +174,13 @@ class Chain:
             for n in range(len(tanglingPntXY_list)):
                 tanglingPntXY_list[n] = rs.coerce3dpoint( tanglingPntXY_list[n] )
 
-            for tanglingPntXY in tanglingPntXY_list:
+            tanglingPntXY_list2 =  rs.CopyObjects( tanglingPnt_list )
+            for n in range(len(tanglingPntXY_list2)):
+                tanglingPntXY_list2[n] = rs.coerce3dpoint( tanglingPntXY_list2[n] )
+
+            for i, tanglingPntXY in enumerate(tanglingPntXY_list):
                 tanglingPntXY[2] = 0
+                tanglingPntXY_list2[i][2] = 0
 
             for thisn, tanglingPntXY in enumerate( tanglingPntXY_list ):
                 for n in range(thisn):
@@ -183,16 +188,20 @@ class Chain:
                         ## TODO: does not deal with flip
                         if tanglingPnt_list[thisn][2] > tanglingPnt_list[n][2]:
                             tanglingPnt_list[n] = []
+                            tanglingPntXY_list2[n] = []
                         else:
                             tanglingPnt_list[thisn] = []
+                            tanglingPntXY_list2[thisn] = []
 
             tanglingPnt_list = filter(None, tanglingPnt_list)
+            tanglingPntXY_list2 = filter(None, tanglingPntXY_list2)
 
-            return tanglingPnt_list
+
+            return tanglingPnt_list, tanglingPntXY_list2
         
 
         # make a list of tangled catenaries
-        def tanglingChains( tanglingPnt_list ):
+        def tanglingChains( tanglingPnt_list, tanglingPntXY_list ):
             for i in range( len(tanglingPnt_list) -1):
                 aPt = tanglingPnt_list[i]
                 bPt = tanglingPnt_list[i+1]
@@ -202,32 +211,70 @@ class Chain:
 
                 self.tangledCat_list.append(cat)
 
-            totalDist = 0
-            for i in range( len(self.tangledCat_list) ):
-                cat = self.tangledCat_list[i]
-                totalDist += cat.dist
+            def tangPntLineLine():
+                ### get divided length
+                totalDist = 0
+                for i in range( len(self.tangledCat_list) ):
+                    cat = self.tangledCat_list[i]
+                    totalDist += cat.dist
+                
 
+                for i in range( len(self.tangledCat_list) ):
+                    cat = self.tangledCat_list[i]
+                    if cat.dist < nozzleDiameter*2:
+                        cat.mult = 1
+                        cat.rerun()
+                    else:
+                        cat.mult *= self.catBeforeTangle.dist / totalDist
+                        cat.rerun()
+                
+            def extrdPntLineLine():
+                ### get divided length
 
-            ### get divided length
-            for i in range( len(self.tangledCat_list) ):
-                cat = self.tangledCat_list[i]
-                if cat.dist < nozzleDiameter*2:
-                    cat.mult = 1
-                    cat.rerun()
-                else:
-                    cat.mult *= self.catBeforeTangle.dist / totalDist
-                    cat.rerun()
+                dist_list = []
+                for i in range( len(tanglingPntXY_list)-1 ):
+                    tanglingPntXYDist = rs.Distance(tanglingPntXY_list[i], tanglingPntXY_list[i+1])
+                    dist_list.append(tanglingPntXYDist)
+                
+                totalDist = 0
+                for i in range( len(self.tangledCat_list) ):
+                    cat = self.tangledCat_list[i]
+                    totalDist += cat.dist
+
+                for i in range( len(self.tangledCat_list) ):
+                    cat = self.tangledCat_list[i]
+                    if cat.dist < nozzleDiameter*2:
+                        cat.mult = 1
+                        cat.rerun()
+                    else:
+                        #cat.mult *= dist_list[i] / self.catBeforeTangle.dist / cat.dist * self.catBeforeTangle.len /self.mult
+                        #print(cat.dist)
+                        if self.catBeforeTangle.len > totalDist:
+                            cat.mult *= 1 / cat.mult / cat.dist
+                            cat.mult *= (self.catBeforeTangle.len - totalDist) * dist_list[i] / self.catBeforeTangle.dist + cat.dist
+                        else:
+                            print("weird")
+                            cat.mult = 1
+                        #print(cat.dist, cat.mult)
+                        cat.rerun()
+            
+            #tangPntLineLine()
+            extrdPntLineLine()
+
 
             #return self.tangledCat_list
 
-        tanglingPnt_list = tanglingPnts()
+        tanglingPnt_list, tanglingPntXY_list= tanglingPnts()
+        tanglingChains( tanglingPnt_list, tanglingPntXY_list)
         
+        """
         ## !!!!
         if lineNforDebug < len(lines)-1:
             tanglingChains( tanglingPnt_list )
         else:
             for item in tanglingPnt_list:
                 debugger.append(item)
+        """
 
         return self.tangledCat_list
 
@@ -244,11 +291,12 @@ for lineN, line in enumerate( lines ):
     chain = Chain( rs.CurveStartPoint(line),rs.CurveEndPoint(line),y[lineN],gravity )
     chain.tangle( tangledChain_list , lineN)
 
+    """
     ## !!!!
     if lineN < len(lines)-1:
-        
-        tangledChain_list.append( chain )
-        print(lineN)
+    """
+    tangledChain_list.append( chain )
+    print(lineN)
 
 
 print("result")
